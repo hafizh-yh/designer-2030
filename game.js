@@ -1,7 +1,7 @@
 /* Rail · Le designer en 2030 · prototype, niveau 08:30
    Le joueur écrit la règle du token alert.critical avec des tuiles. Neuf agents l'appliquent
    à neuf écrans ; l'audit vérifie la règle avec de vrais critères (design tokens, WCAG 2.2, RGAA 4.1.2).
-   Musique et sons générés en direct (Web Audio), ilustrations en SVG. */
+   Musique et sons générés en direct (Web Audio), illustrations en SVG. Interface bilingue FR / ID. */
 
 const $ = (s, el = document) => el.querySelector(s);
 const app = $('#app');
@@ -51,7 +51,7 @@ function avatar(kind) {
 }
 function heroScene() {
   const win = (x) => `<rect x="${x}" y="246" width="40" height="30" rx="8" fill="#E0F2FE" stroke="#2A2536" stroke-width="2.5"/>`;
-  return `<svg viewBox="0 0 560 400" role="img" aria-label="Harith, designer, devant un tram de Lyon entouré de petits agents IA">
+  return `<svg viewBox="0 0 560 400" role="img" aria-label="${tx('Harith, designer, devant un tram de Lyon entouré de petits agents IA', 'Harith, desainer, di depan trem Lyon dikelilingi agen AI kecil')}">
     <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9E1FF"/><stop offset="1" stop-color="#F7F5FD"/></linearGradient></defs>
     <rect width="560" height="400" fill="url(#sky)"/>
     <circle cx="455" cy="86" r="44" fill="#FDE68A" stroke="#2A2536" stroke-width="3"/>
@@ -76,7 +76,7 @@ function heroScene() {
   </svg>`;
 }
 function celebrate() {
-  return `<svg viewBox="0 0 420 240" role="img" aria-label="Harith fête la règle validée, les agents sont alignés">
+  return `<svg viewBox="0 0 420 240" role="img" aria-label="${tx('Harith fête la règle validée, les agents sont alignés', 'Harith merayakan aturan yang lolos, para agen berbaris rapi')}">
     <rect width="420" height="240" fill="#F4F1FA"/>
     <g stroke="#2A2536" stroke-width="2"><rect x="30" y="40" width="8" height="14" fill="#FDE68A" transform="rotate(20 34 47)"/><rect x="370" y="30" width="8" height="14" fill="#A7F3D0" transform="rotate(-25 374 37)"/><circle cx="330" cy="70" r="5" fill="#FBCFE8"/><circle cx="90" cy="26" r="5" fill="#C4B5FD"/><rect x="250" y="20" width="8" height="14" fill="#C4B5FD" transform="rotate(40 254 27)"/></g>
     ${person(160, 64, 1.05, { skin: '#B8794E', top: '#7C3AED', phones: true, glasses: true })}
@@ -85,7 +85,7 @@ function celebrate() {
   </svg>`;
 }
 function sleepyBot() {
-  return `<svg viewBox="0 0 200 160" role="img" aria-label="Un agent à court de batterie"><rect width="200" height="160" fill="#F4F1FA"/>
+  return `<svg viewBox="0 0 200 160" role="img" aria-label="${tx('Un agent à court de batterie', 'Agen yang kehabisan baterai')}"><rect width="200" height="160" fill="#F4F1FA"/>
     ${bot(52, 40, 2.2, '#DDD6FE')}<rect x="150" y="70" width="34" height="56" rx="8" fill="#fff" stroke="#2A2536" stroke-width="3"/><rect x="160" y="62" width="14" height="8" rx="2" fill="#2A2536"/><rect x="156" y="112" width="22" height="8" rx="2" fill="#DC2626"/>
     <text x="140" y="40" font-size="22" font-weight="700" fill="#7C3AED" font-family="Sk Modernist, sans-serif">z z</text></svg>`;
 }
@@ -180,11 +180,39 @@ const Sound = (() => {
     }
   };
 })();
+/* ---------- Langue (FR / ID) ---------- */
+let LANG = 'fr';
+try { const q = new URLSearchParams(location.search).get('lang'); LANG = q === 'id' || q === 'fr' ? q : (localStorage.getItem('rail-lang') || 'fr'); } catch (e) {}
+function tx(fr, id) { return LANG === 'id' ? id : fr; }
+const L = o => (o && typeof o === 'object' && 'fr' in o) ? (LANG === 'id' ? o.id : o.fr) : o;
+let current = () => screenTitle();
+function show(fn) { current = fn; fn(); }
+function renderChrome() {
+  document.documentElement.lang = LANG;
+  document.title = tx('Rail · Le designer en 2030', 'Rail · Desainer di 2030');
+  $('.brand-sub').textContent = tx('Le designer en 2030 · prototype', 'Desainer di 2030 · prototipe');
+  $('#budgetLabel').textContent = 'Budget';
+  $('#budgetBar').setAttribute('aria-label', tx('Budget de tokens', 'Anggaran token'));
+  $('#carnetBtn .t').textContent = tx('Carnet', 'Catatan');
+  $('#carnetTitle').textContent = tx('Carnet de principes', 'Catatan prinsip');
+  $('#carnetClose').textContent = tx('Fermer', 'Tutup');
+  $('.carnet-intro').textContent = tx('Chaque principe rencontré pendant la partie s’ajoute ici, avec sa source officielle.', 'Setiap prinsip yang kamu temui selama bermain masuk ke sini, lengkap dengan sumber resminya.');
+  document.querySelectorAll('#langSwitch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === LANG)));
+  $('#langSwitch').setAttribute('aria-label', tx('Langue', 'Bahasa'));
+  renderSoundBtn();
+}
+document.querySelectorAll('#langSwitch button').forEach(b => b.onclick = () => {
+  if (b.dataset.lang === LANG) return;
+  LANG = b.dataset.lang; try { localStorage.setItem('rail-lang', LANG); } catch (e) {}
+  Sound.sfx('tap'); renderChrome(); S.justRan = false; current();
+  if ($('#carnet').open) openCarnet();
+});
+
 function renderSoundBtn() {
   const b = $('#soundBtn');
   b.setAttribute('aria-pressed', String(Sound.on));
-  b.innerHTML = `${Sound.on ? I.note : I.mute}<span class="t">Musique</span>`;
-  b.setAttribute('aria-label', Sound.on ? 'Couper la musique et les sons' : 'Activer la musique et les sons');
+  b.innerHTML = `${Sound.on ? I.note : I.mute}<span class="t">${tx('Musique', 'Musik')}</span>`;
+  b.setAttribute('aria-label', Sound.on ? tx('Couper la musique et les sons', 'Matikan musik dan suara') : tx('Activer la musique et les sons', 'Nyalakan musik dan suara'));
 }
 $('#soundBtn').onclick = () => { Sound.toggle(); renderSoundBtn(); };
 
@@ -192,73 +220,73 @@ $('#soundBtn').onclick = () => { Sound.toggle(); renderSoundBtn(); };
 const PRINCIPLES = {
   spec: {
     ref: 'Specification gaming · DeepMind 2020',
-    title: 'La machine fait ce qu’on dit, pas ce qu’on veut dire',
-    text: 'Un système peut satisfaire une consigne à la lettre sans atteindre le but voulu. C’est l’écart entre visée initiale et visée interprétée vu en cours (F. Levillain).',
+    title: { fr: 'La machine fait ce qu’on dit, pas ce qu’on veut dire', id: 'Mesin melakukan apa yang dikatakan, bukan apa yang dimaksud' },
+    text: { fr: 'Un système peut satisfaire une consigne à la lettre sans atteindre le but voulu. C’est l’écart entre visée initiale et visée interprétée vu en cours (F. Levillain).', id: 'Sebuah sistem bisa memenuhi perintah secara harfiah tanpa mencapai tujuan sebenarnya. Inilah jarak antara maksud awal dan maksud yang ditafsirkan, seperti di kuliah (F. Levillain).' },
     url: 'https://deepmind.google/blog/specification-gaming-the-flip-side-of-ai-ingenuity/'
   },
   tokens: {
     ref: 'Design tokens · W3C DTCG 2025.10',
-    title: 'Un token sémantique, pas une valeur brute',
-    text: 'Un token sémantique (color.alert.critical) dit à quoi sert une couleur. Une valeur brute (#E5482D) ne dit rien : elle ne s’adapte pas au thème sombre et chaque outil peut la réinterpréter. Le format standard des tokens est stable depuis octobre 2025.',
+    title: { fr: 'Un token sémantique, pas une valeur brute', id: 'Token semantik, bukan nilai mentah' },
+    text: { fr: 'Un token sémantique (color.alert.critical) dit à quoi sert une couleur. Une valeur brute (#E5482D) ne dit rien : elle ne s’adapte pas au thème sombre et chaque outil peut la réinterpréter. Le format standard des tokens est stable depuis octobre 2025.', id: 'Token semantik (color.alert.critical) menjelaskan fungsi sebuah warna. Nilai mentah (#E5482D) tidak menjelaskan apa-apa: tidak menyesuaikan tema gelap dan setiap alat bisa menafsirkannya ulang. Format standar token stabil sejak Oktober 2025.' },
     url: 'https://www.designtokens.org/'
   },
   contrast: {
-    ref: 'WCAG 2.2 · 1.4.3 (AA) · RGAA 4.1.2 · critère 3.2',
-    title: 'Contraste du texte : au moins 4,5:1',
-    text: 'Le texte de taille normale doit avoir un contraste d’au moins 4,5:1 avec son arrière-plan.',
+    ref: { fr: 'WCAG 2.2 · 1.4.3 (AA) · RGAA 4.1.2 · critère 3.2', id: 'WCAG 2.2 · 1.4.3 (AA) · RGAA 4.1.2 · kriteria 3.2' },
+    title: { fr: 'Contraste du texte : au moins 4,5:1', id: 'Kontras teks: minimal 4,5:1' },
+    text: { fr: 'Le texte de taille normale doit avoir un contraste d’au moins 4,5:1 avec son arrière-plan.', id: 'Teks berukuran normal harus punya kontras minimal 4,5:1 terhadap latarnya.' },
     url: 'https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html'
   },
   color: {
-    ref: 'WCAG 2.2 · 1.4.1 (A) · RGAA 4.1.2 · critère 3.1',
-    title: 'Jamais la couleur seule',
-    text: 'Une information ne doit pas être transmise uniquement par la couleur. Pour une personne daltonienne, une alerte rouge sans icône ni texte explicite peut passer inaperçue.',
+    ref: { fr: 'WCAG 2.2 · 1.4.1 (A) · RGAA 4.1.2 · critère 3.1', id: 'WCAG 2.2 · 1.4.1 (A) · RGAA 4.1.2 · kriteria 3.1' },
+    title: { fr: 'Jamais la couleur seule', id: 'Jangan hanya mengandalkan warna' },
+    text: { fr: 'Une information ne doit pas être transmise uniquement par la couleur. Pour une personne daltonienne, une alerte rouge sans icône ni texte explicite peut passer inaperçue.', id: 'Informasi tidak boleh disampaikan hanya lewat warna. Bagi orang buta warna, peringatan merah tanpa ikon atau teks yang jelas bisa terlewat.' },
     url: 'https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html'
   },
   motion: {
-    ref: 'WCAG 2.2 · 2.2.2 (A) · RGAA 4.1.2 · critère 13.8',
-    title: 'Ce qui clignote doit pouvoir s’arrêter',
-    text: 'Un contenu qui clignote ou bouge plus de 5 secondes doit pouvoir être mis en pause, arrêté ou masqué. Le clignotement attire l’œil, mais il peut aussi angoisser ou distraire.',
+    ref: { fr: 'WCAG 2.2 · 2.2.2 (A) · RGAA 4.1.2 · critère 13.8', id: 'WCAG 2.2 · 2.2.2 (A) · RGAA 4.1.2 · kriteria 13.8' },
+    title: { fr: 'Ce qui clignote doit pouvoir s’arrêter', id: 'Yang berkedip harus bisa dihentikan' },
+    text: { fr: 'Un contenu qui clignote ou bouge plus de 5 secondes doit pouvoir être mis en pause, arrêté ou masqué. Le clignotement attire l’œil, mais il peut aussi angoisser ou distraire.', id: 'Konten yang berkedip atau bergerak lebih dari 5 detik harus bisa dijeda, dihentikan, atau disembunyikan. Kedipan menarik perhatian, tapi juga bisa membuat cemas atau mengganggu.' },
     url: 'https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html'
   },
   target: {
-    ref: 'WCAG 2.2 · 2.5.8 (AA) · loi de Fitts',
-    title: 'Une cible d’au moins 24 × 24 px',
-    text: 'Les cibles tactiles doivent mesurer au moins 24 × 24 pixels CSS (sauf exceptions). La loi de Fitts le rappelle : plus une cible est petite, plus elle est lente et difficile à atteindre, surtout dans un bus qui roule.',
+    ref: { fr: 'WCAG 2.2 · 2.5.8 (AA) · loi de Fitts', id: 'WCAG 2.2 · 2.5.8 (AA) · hukum Fitts' },
+    title: { fr: 'Une cible d’au moins 24 × 24 px', id: 'Target minimal 24 × 24 px' },
+    text: { fr: 'Les cibles tactiles doivent mesurer au moins 24 × 24 pixels CSS (sauf exceptions). La loi de Fitts le rappelle : plus une cible est petite, plus elle est lente et difficile à atteindre, surtout dans un bus qui roule.', id: 'Target sentuh harus berukuran minimal 24 × 24 piksel CSS (dengan beberapa pengecualian). Hukum Fitts mengingatkan: makin kecil target, makin lambat dan sulit dijangkau, apalagi di bus yang sedang melaju.' },
     url: 'https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html'
   },
   coherence: {
-    ref: 'Design system · cohérence',
-    title: 'Une règle, un seul résultat',
-    text: 'Quand une règle est floue, chaque agent la complète à sa façon : neuf écrans, neuf alertes différentes. Une bonne règle produit le même résultat partout.',
+    ref: { fr: 'Design system · cohérence', id: 'Design system · konsistensi' },
+    title: { fr: 'Une règle, un seul résultat', id: 'Satu aturan, satu hasil' },
+    text: { fr: 'Quand une règle est floue, chaque agent la complète à sa façon : neuf écrans, neuf alertes différentes. Une bonne règle produit le même résultat partout.', id: 'Kalau aturannya kabur, setiap agen melengkapinya dengan caranya sendiri: sembilan layar, sembilan peringatan berbeda. Aturan yang baik menghasilkan hal yang sama di mana pun.' },
     url: 'https://zeroheight.com/resources/state-of-ai-in-design-systems/'
   }
 };
 const RGAA_URL = 'https://accessibilite.numerique.gouv.fr/methode/criteres-et-tests/';
 
 /* ---------- Tuiles ---------- */
-const KIND_COLOR = { couleur: '#FBCFE8', effet: '#FDE68A', contenu: '#A7F3D0', texte: '#C4B5FD', bouton: '#BAE6FD' };
+const KIND = { couleur: { fr: 'couleur', id: 'warna', c: '#FBCFE8' }, effet: { fr: 'effet', id: 'efek', c: '#FDE68A' }, contenu: { fr: 'contenu', id: 'konten', c: '#A7F3D0' }, texte: { fr: 'texte', id: 'teks', c: '#C4B5FD' }, bouton: { fr: 'bouton', id: 'tombol', c: '#BAE6FD' } };
 const TILES = [
-  { id: 'TOKEN',    k: 'couleur', label: 'token color.alert.critical' },
-  { id: 'HEX',      k: 'couleur', label: '#E5482D (valeur brute)' },
-  { id: 'VIVE',     k: 'couleur', label: 'une couleur « bien vive »' },
-  { id: 'VISIBLE',  k: 'effet',   label: '« plus visible »' },
-  { id: 'BLINK',    k: 'effet',   label: 'clignoter pour attirer l’œil' },
-  { id: 'ICON',     k: 'contenu', label: 'icône + texte, jamais la couleur seule' },
-  { id: 'CONTRAST', k: 'texte',   label: 'contraste du texte ≥ 4,5:1' },
-  { id: 'TARGET',   k: 'bouton',  label: 'bouton « Itinéraire » ≥ 24 × 24 px' }
+  { id: 'TOKEN',    k: 'couleur', label: { fr: 'token color.alert.critical', id: 'token color.alert.critical' } },
+  { id: 'HEX',      k: 'couleur', label: { fr: '#E5482D (valeur brute)', id: '#E5482D (nilai mentah)' } },
+  { id: 'VIVE',     k: 'couleur', label: { fr: 'une couleur « bien vive »', id: 'warna yang « cerah banget »' } },
+  { id: 'VISIBLE',  k: 'effet',   label: { fr: '« plus visible »', id: '« lebih terlihat »' } },
+  { id: 'BLINK',    k: 'effet',   label: { fr: 'clignoter pour attirer l’œil', id: 'berkedip supaya menarik perhatian' } },
+  { id: 'ICON',     k: 'contenu', label: { fr: 'icône + texte, jamais la couleur seule', id: 'ikon + teks, jangan hanya warna' } },
+  { id: 'CONTRAST', k: 'texte',   label: { fr: 'contraste du texte ≥ 4,5:1', id: 'kontras teks ≥ 4,5:1' } },
+  { id: 'TARGET',   k: 'bouton',  label: { fr: 'bouton « Itinéraire » ≥ 24 × 24 px', id: 'tombol « Rute » ≥ 24 × 24 px' } }
 ];
 const MAX_SLOTS = 4, COST = 25, START_BUDGET = 100;
 
 const SCREENS = [
-  { lab: 'Appli mobile', line: 'C3 · Perrache', ic: 'phone' },
-  { lab: 'Écran de quai', line: 'Tram T2 · Perrache', ic: 'board' },
-  { lab: 'Borne gare', line: 'Bus 31 · Part-Dieu', ic: 'board' },
-  { lab: 'Site web', line: 'Ligne C3 · trajet', ic: 'web' },
-  { lab: 'Widget', line: 'Mes trajets', ic: 'phone' },
-  { lab: 'Notification', line: 'Ligne C3', ic: 'bell' },
-  { lab: 'Écran du tram', line: 'Prochain arrêt', ic: 'tram' },
-  { lab: 'Vision daltonienne', line: 'C3 · Perrache', gray: true, ic: 'eye' },
-  { lab: 'Thème sombre', line: 'C3 · Perrache', dark: true, ic: 'moon' }
+  { lab: { fr: 'Appli mobile', id: 'Aplikasi mobile' }, line: 'C3 · Perrache', ic: 'phone' },
+  { lab: { fr: 'Écran de quai', id: 'Layar peron' }, line: 'Tram T2 · Perrache', ic: 'board' },
+  { lab: { fr: 'Borne gare', id: 'Kios stasiun' }, line: 'Bus 31 · Part-Dieu', ic: 'board' },
+  { lab: { fr: 'Site web', id: 'Situs web' }, line: { fr: 'Ligne C3 · trajet', id: 'Jalur C3 · perjalanan' }, ic: 'web' },
+  { lab: { fr: 'Widget', id: 'Widget' }, line: { fr: 'Mes trajets', id: 'Perjalananku' }, ic: 'phone' },
+  { lab: { fr: 'Notification', id: 'Notifikasi' }, line: { fr: 'Ligne C3', id: 'Jalur C3' }, ic: 'bell' },
+  { lab: { fr: 'Écran du tram', id: 'Layar di trem' }, line: { fr: 'Prochain arrêt', id: 'Halte berikutnya' }, ic: 'tram' },
+  { lab: { fr: 'Vision daltonienne', id: 'Penglihatan buta warna' }, line: 'C3 · Perrache', gray: true, ic: 'eye' },
+  { lab: { fr: 'Thème sombre', id: 'Tema gelap' }, line: 'C3 · Perrache', dark: true, ic: 'moon' }
 ];
 const TOKEN_VALUES = { light: { bg: '#B42318', fg: '#FFFFFF' }, dark: { bg: '#FF8A80', fg: '#1A1A1A' } };
 const VIVID = ['#3D7BFF', '#FF2D55', '#FF9500', '#AF52DE', '#00B8D9', '#34C759'];
@@ -308,31 +336,54 @@ function interpret(rule, i, rand) {
   return spec;
 }
 
+/* L'audit garde les données ; le texte est produit dans la langue choisie au moment de l'affichage. */
 function audit(rule, specs) {
   const same = specs.every(s => s.bg === specs[0].bg && s.fx === specs[0].fx) ||
     (rule.includes('TOKEN') && specs.slice(0, 8).every(s => s.bg === specs[0].bg && s.fx === specs[0].fx));
   const minR = Math.min(...specs.map(s => s.ratio));
   const worst = specs.findIndex(s => s.ratio === minR);
   const blinkN = specs.filter(s => s.blink).length;
-  const FXN = { blink: 'clignotement', glow: 'halo', huge: 'taille XXL', caps: 'majuscules' };
-  const fx = new Set(specs.map(s => s.fx).filter(Boolean).map(f => FXN[f]));
+  const fx = [...new Set(specs.map(s => s.fx).filter(Boolean))];
   const colors = new Set(specs.map(s => s.bg)).size;
   return [
-    { key: 'coherence', name: 'Cohérence entre les 9 écrans', ok: same,
-      why: same ? 'Les neuf agents ont produit la même alerte.' :
-        `Règle floue : ${colors} couleurs différentes${fx.size ? ' et des effets improvisés (' + [...fx].join(', ') + ')' : ''}. Chaque agent a complété la règle à sa façon.` },
-    { key: 'tokens', name: 'Source de vérité : token sémantique', ok: rule.includes('TOKEN'),
-      why: rule.includes('TOKEN') ? 'Le token porte le sens et s’adapte au thème sombre.' :
-        rule.includes('HEX') ? 'Une valeur brute ne s’adapte pas au thème sombre et ne dit pas à quoi sert la couleur.' : 'Aucune couleur imposée : les agents en ont inventé une.' },
-    { key: 'contrast', name: 'Contraste du texte ≥ 4,5:1', ok: minR >= 4.5,
-      why: minR >= 4.5 ? `Contraste minimum mesuré : ${fmt(minR)}:1.` : `Écran « ${SCREENS[worst].lab} » : ${fmt(minR)}:1 seulement.` },
-    { key: 'color', name: 'Information pas uniquement par la couleur', ok: specs.every(s => s.icon),
-      why: specs.every(s => s.icon) ? 'Icône et texte explicite : l’alerte reste lisible en vision daltonienne.' : 'En vision daltonienne, l’alerte se confond avec le reste de l’écran.' },
-    { key: 'motion', name: 'Pas de clignotement imposé', ok: blinkN === 0,
-      why: blinkN === 0 ? 'Aucune animation qui ne peut pas s’arrêter.' : `${blinkN} écran(s) font clignoter l’alerte sans moyen de l’arrêter.` },
-    { key: 'target', name: 'Bouton « Itinéraire » ≥ 24 × 24 px', ok: specs.every(s => s.btn >= 24),
-      why: specs.every(s => s.btn >= 24) ? 'Cible de 32 px : facile à toucher, même dans un bus.' : 'Par défaut, les agents ont fait un bouton compact de 20 px.' }
+    { key: 'coherence', ok: same, colors, fx },
+    { key: 'tokens', ok: rule.includes('TOKEN'), hex: rule.includes('HEX') },
+    { key: 'contrast', ok: minR >= 4.5, minR, worst },
+    { key: 'color', ok: specs.every(s => s.icon) },
+    { key: 'motion', ok: blinkN === 0, blinkN },
+    { key: 'target', ok: specs.every(s => s.btn >= 24) }
   ];
+}
+const FXN = { blink: { fr: 'clignotement', id: 'kedipan' }, glow: { fr: 'halo', id: 'cahaya' }, huge: { fr: 'taille XXL', id: 'ukuran XXL' }, caps: { fr: 'majuscules', id: 'huruf kapital' } };
+function checkText(c) {
+  switch (c.key) {
+    case 'coherence': return {
+      name: tx('Cohérence entre les 9 écrans', 'Konsistensi di 9 layar'),
+      why: c.ok ? tx('Les neuf agents ont produit la même alerte.', 'Kesembilan agen menghasilkan peringatan yang sama.')
+        : tx(`Règle floue : ${c.colors} couleurs différentes${c.fx.length ? ' et des effets improvisés (' + c.fx.map(f => L(FXN[f])).join(', ') + ')' : ''}. Chaque agent a complété la règle à sa façon.`,
+             `Aturan kabur: ${c.colors} warna berbeda${c.fx.length ? ' dan efek improvisasi (' + c.fx.map(f => L(FXN[f])).join(', ') + ')' : ''}. Setiap agen melengkapi aturan dengan caranya sendiri.`) };
+    case 'tokens': return {
+      name: tx('Source de vérité : token sémantique', 'Sumber kebenaran: token semantik'),
+      why: c.ok ? tx('Le token porte le sens et s’adapte au thème sombre.', 'Token membawa makna dan menyesuaikan tema gelap.')
+        : c.hex ? tx('Une valeur brute ne s’adapte pas au thème sombre et ne dit pas à quoi sert la couleur.', 'Nilai mentah tidak menyesuaikan tema gelap dan tidak menjelaskan fungsi warnanya.')
+        : tx('Aucune couleur imposée : les agents en ont inventé une.', 'Tidak ada warna yang ditetapkan: para agen mengarang sendiri.') };
+    case 'contrast': return {
+      name: tx('Contraste du texte ≥ 4,5:1', 'Kontras teks ≥ 4,5:1'),
+      why: c.ok ? tx(`Contraste minimum mesuré : ${fmt(c.minR)}:1.`, `Kontras terendah yang terukur: ${fmt(c.minR)}:1.`)
+        : tx(`Écran « ${L(SCREENS[c.worst].lab)} » : ${fmt(c.minR)}:1 seulement.`, `Layar « ${L(SCREENS[c.worst].lab)} »: hanya ${fmt(c.minR)}:1.`) };
+    case 'color': return {
+      name: tx('Information pas uniquement par la couleur', 'Informasi tidak hanya lewat warna'),
+      why: c.ok ? tx('Icône et texte explicite : l’alerte reste lisible en vision daltonienne.', 'Ikon dan teks yang jelas: peringatan tetap terbaca oleh penyandang buta warna.')
+        : tx('En vision daltonienne, l’alerte se confond avec le reste de l’écran.', 'Bagi penyandang buta warna, peringatan menyatu dengan bagian layar lainnya.') };
+    case 'motion': return {
+      name: tx('Pas de clignotement imposé', 'Tidak ada kedipan paksa'),
+      why: c.ok ? tx('Aucune animation qui ne peut pas s’arrêter.', 'Tidak ada animasi yang tidak bisa dihentikan.')
+        : tx(`${c.blinkN} écran(s) font clignoter l’alerte sans moyen de l’arrêter.`, `${c.blinkN} layar membuat peringatan berkedip tanpa cara menghentikannya.`) };
+    case 'target': return {
+      name: tx('Bouton « Itinéraire » ≥ 24 × 24 px', 'Tombol « Rute » ≥ 24 × 24 px'),
+      why: c.ok ? tx('Cible de 32 px : facile à toucher, même dans un bus.', 'Target 32 px: mudah disentuh, bahkan di dalam bus.')
+        : tx('Par défaut, les agents ont fait un bouton compact de 20 px.', 'Secara bawaan, para agen membuat tombol kecil 20 px.') };
+  }
 }
 
 /* ---------- Rendu ---------- */
@@ -346,7 +397,7 @@ function unlock(keys) {
   let added = 0;
   keys.forEach(k => { if (!S.carnet.has(k)) { S.carnet.add(k); added++; } });
   $('#carnetCount').textContent = `(${S.carnet.size})`;
-  if (added) toast(`${added} principe${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} au carnet`);
+  if (added) toast(tx(`${added} principe${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} au carnet`, `${added} prinsip masuk ke catatan`));
 }
 function toast(t) {
   document.querySelectorAll('.toast').forEach(x => x.remove());
@@ -356,33 +407,37 @@ function toast(t) {
 
 function renderDevice(scr, spec, i, state, reveal) {
   const cls = ['dev', scr.dark ? 'dark' : '', scr.gray ? 'gray' : '', state || '', reveal ? 'reveal' : ''].join(' ');
-  const head = `<div class="lab">${SCREEN_ICON[scr.ic]}<span>${scr.lab}</span><span class="n">${String(i + 1).padStart(2, '0')}</span></div>`;
+  const n = String(i + 1).padStart(2, '0');
+  const head = `<div class="lab">${SCREEN_ICON[scr.ic]}<span>${L(scr.lab)}</span><span class="n">${n}</span></div>`;
   const d = reveal ? ` style="--d:${i * 90}ms"` : '';
-  if (!spec) return `<div class="${cls}"${d}>${head}<div class="placeholder">${botSvg(['#A7F3D0', '#FDE68A', '#FBCFE8'][i % 3])}<span>agent ${String(i + 1).padStart(2, '0')} attend la règle</span></div></div>`;
+  if (!spec) return `<div class="${cls}"${d}>${head}<div class="placeholder">${botSvg(['#A7F3D0', '#FDE68A', '#FBCFE8'][i % 3])}<span>${tx(`agent ${n} attend la règle`, `agen ${n} menunggu aturan`)}</span></div></div>`;
   const a = ['alert', spec.blink ? 'blink' : '', spec.fx && spec.fx !== 'blink' ? spec.fx : ''].join(' ');
-  const label = spec.icon ? 'Retard : 8 min' : '8 min';
+  const label = spec.icon ? tx('Retard : 8 min', 'Terlambat: 8 mnt') : tx('8 min', '8 mnt');
   return `<div class="${cls}"${d}>${head}
-  <div class="scr"><div class="line">${scr.line}</div><div class="sub">Prochain passage</div>
+  <div class="scr"><div class="line">${L(scr.line)}</div><div class="sub">${tx('Prochain passage', 'Kedatangan berikutnya')}</div>
   <div class="${a}" style="background:${spec.bg};color:${spec.fg}">${spec.icon ? I.alert : ''}<span>${label}</span>
-  <span class="go" style="height:${spec.btn}px;font-size:${spec.btn > 24 ? '.72rem' : '.6rem'}">Itinéraire</span></div>
-  <div class="sub">contraste ${fmt(spec.ratio)}:1 · bouton ${spec.btn} px</div></div></div>`;
+  <span class="go" style="height:${spec.btn}px;font-size:${spec.btn > 24 ? '.72rem' : '.6rem'}">${tx('Itinéraire', 'Rute')}</span></div>
+  <div class="sub">${tx('contraste', 'kontras')} ${fmt(spec.ratio)}:1 · ${tx('bouton', 'tombol')} ${spec.btn} px</div></div></div>`;
 }
 const botSvg = c => `<svg viewBox="0 0 40 40" aria-hidden="true">${bot(0, 0, 1, c)}</svg>`;
+const pencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const legend = () => `<div class="legend">
+  <span class="chip"><span class="dot" style="background:var(--role-human)"></span>${tx('Jugement humain', 'Penilaian manusia')}</span>
+  <span class="chip"><span class="dot" style="background:var(--role-aug)"></span>${tx('Augmenté', 'Diperkuat AI')}</span>
+  <span class="chip"><span class="dot" style="background:var(--role-auto)"></span>${tx('Automatisé', 'Otomatis')}</span></div>`;
 
 function screenTitle() {
+  current = screenTitle;
   setHud(false);
   app.innerHTML = `<section class="screen hero">
     <div>
       <div class="kicker">ICX3 · Designing for the Internet of Agents</div>
       <h1 class="title">Rail <span>2030</span></h1>
-      <p class="lead">Vous êtes Harith, designer de design system. Une quarantaine d’agents fabriquent chaque jour les écrans de Ligne, la plateforme de mobilité de la métropole de Lyon. Ils lisent vos règles. À la lettre.</p>
-      <div class="legend">
-        <span class="chip"><span class="dot" style="background:var(--role-human)"></span>Jugement humain</span>
-        <span class="chip"><span class="dot" style="background:var(--role-aug)"></span>Augmenté</span>
-        <span class="chip"><span class="dot" style="background:var(--role-auto)"></span>Automatisé</span>
-      </div>
-      <button class="btn" id="go">${I.play}Commencer la journée</button>
-      <p class="hint">Avec musique. Le bouton « Musique » en haut la coupe à tout moment. Niveau jouable : 08:30.</p>
+      <p class="lead">${tx('Vous êtes Harith, designer de design system. Une quarantaine d’agents fabriquent chaque jour les écrans de Ligne, la plateforme de mobilité de la métropole de Lyon. Ils lisent vos règles. À la lettre.',
+        'Kamu adalah Harith, desainer design system. Sekitar empat puluh agen AI membuat layar-layar Ligne setiap hari, platform mobilitas metropolitan Lyon. Mereka membaca aturanmu. Secara harfiah.')}</p>
+      ${legend()}
+      <button class="btn" id="go">${I.play}${tx('Commencer la journée', 'Mulai hari ini')}</button>
+      <p class="hint">${tx('Avec musique. Le bouton « Musique » en haut la coupe à tout moment. Niveau jouable : 08:30.', 'Dengan musik. Tombol « Musik » di atas bisa mematikannya kapan saja. Level yang bisa dimainkan: 08:30.')}</p>
     </div>
     <div class="illus">${heroScene()}</div>
   </section>`;
@@ -390,63 +445,67 @@ function screenTitle() {
 }
 
 function screenBrief() {
-  window.scrollTo(0, 0); setHud(true); updateBudget(); $('#clock').textContent = '08:30';
+  if (current !== screenBrief) window.scrollTo(0, 0);
+  current = screenBrief;
+  setHud(true); updateBudget(); $('#clock').textContent = '08:30';
   const demo = [0, 1, 2].map(i => renderDevice(SCREENS[i], { bg: '#3D7BFF', fg: '#FFFFFF', icon: false, blink: false, btn: 20, fx: '', ratio: ratio('#3D7BFF', '#FFFFFF') }, i, 'fail')).join('');
   app.innerHTML = `<section class="screen brief">
     <div>
-      <div class="kicker">Mardi 14 mai 2030 · 08:30</div>
-      <h2 class="h">Le bleu qui n’existait pas</h2>
-      <div class="msg">${avatar('po')}<div><span class="who">Équipe Produit · Appli Ligne</span><span class="when">hier, 18:42</span>
-        <div class="bubble">Tu peux rendre l’alerte de retard plus visible ? Les usagers la ratent.</div></div></div>
-      <div class="agentlog" aria-label="Journal de l’agent"><svg viewBox="0 0 40 40" aria-hidden="true">${bot(0, 0, 1, '#FBCFE8')}</svg><div>
-        &gt; agent-produit-07 : consigne reçue « plus visible »<br>
-        &gt; aucune règle trouvée pour alert.critical<br>
-        &gt; création d’une couleur : <span class="warn">#3D7BFF</span><br>
-        &gt; propagation : <span class="warn">9 écrans mis à jour</span></div>
+      <div class="kicker">${tx('Mardi 14 mai 2030 · 08:30', 'Selasa, 14 Mei 2030 · 08:30')}</div>
+      <h2 class="h">${tx('Le bleu qui n’existait pas', 'Biru yang tidak pernah ada')}</h2>
+      <div class="msg">${avatar('po')}<div><span class="who">${tx('Équipe Produit · Appli Ligne', 'Tim Produk · Aplikasi Ligne')}</span><span class="when">${tx('hier, 18:42', 'kemarin, 18:42')}</span>
+        <div class="bubble">${tx('Tu peux rendre l’alerte de retard plus visible ? Les usagers la ratent.', 'Bisa bikin peringatan keterlambatan lebih terlihat? Penumpang sering melewatkannya.')}</div></div></div>
+      <div class="agentlog" aria-label="${tx('Journal de l’agent', 'Log agen')}"><svg viewBox="0 0 40 40" aria-hidden="true">${bot(0, 0, 1, '#FBCFE8')}</svg><div>
+        &gt; agent-produit-07 : ${tx('consigne reçue « plus visible »', 'perintah diterima « lebih terlihat »')}<br>
+        &gt; ${tx('aucune règle trouvée pour alert.critical', 'tidak ada aturan untuk alert.critical')}<br>
+        &gt; ${tx('création d’une couleur', 'membuat warna baru')} : <span class="warn">#3D7BFF</span><br>
+        &gt; ${tx('propagation', 'penyebaran')} : <span class="warn">${tx('9 écrans mis à jour', '9 layar diperbarui')}</span></div>
       </div>
-      <p class="lead" style="margin-top:1rem">L’agent a fait exactement ce qu’on lui a dit. Pas ce qu’on voulait dire. Votre rôle : <b>écrire la règle du token <code>alert.critical</code></b> pour que les agents l’appliquent partout sans la réinterpréter.</p>
+      <p class="lead" style="margin-top:1rem">${tx('L’agent a fait exactement ce qu’on lui a dit. Pas ce qu’on voulait dire. Votre rôle : <b>écrire la règle du token <code>alert.critical</code></b> pour que les agents l’appliquent partout sans la réinterpréter.',
+        'Agen itu melakukan persis apa yang diperintahkan. Bukan apa yang dimaksud. Tugasmu: <b>menulis aturan token <code>alert.critical</code></b> supaya para agen menerapkannya di mana saja tanpa menafsirkannya ulang.')}</p>
       <div class="card tint" style="margin-top:1rem">
-        <div class="label" style="margin-bottom:.3rem">Comment jouer</div>
-        Choisissez jusqu’à ${MAX_SLOTS} tuiles pour composer la règle, puis lancez les agents. Chaque lancement coûte ${COST} tokens sur un budget de ${START_BUDGET}. L’audit vous dit ce qui ne va pas, et pourquoi.
+        <div class="label" style="margin-bottom:.3rem">${tx('Comment jouer', 'Cara bermain')}</div>
+        ${tx(`Choisissez jusqu’à ${MAX_SLOTS} tuiles pour composer la règle, puis lancez les agents. Chaque lancement coûte ${COST} tokens sur un budget de ${START_BUDGET}. L’audit vous dit ce qui ne va pas, et pourquoi.`,
+             `Pilih maksimal ${MAX_SLOTS} kartu untuk menyusun aturan, lalu jalankan para agen. Setiap kali menjalankan butuh ${COST} token dari anggaran ${START_BUDGET}. Audit akan memberi tahu apa yang salah, dan kenapa.`)}
       </div>
-      <div style="margin-top:1.4rem"><button class="btn" id="go">${avatarMini()}Écrire la règle</button></div>
+      <div style="margin-top:1.4rem"><button class="btn" id="go">${pencil}${tx('Écrire la règle', 'Tulis aturannya')}</button></div>
     </div>
-    <div><div class="label" style="margin-bottom:.5rem">Ce matin, sur trois des neuf écrans</div><div class="grid9" style="grid-template-columns:1fr">${demo}</div></div>
+    <div><div class="label" style="margin-bottom:.5rem">${tx('Ce matin, sur trois des neuf écrans', 'Pagi ini, di tiga dari sembilan layar')}</div><div class="grid9" style="grid-template-columns:1fr">${demo}</div></div>
   </section>`;
-  unlock(['spec']);
+  if (!S.carnet.has('spec')) unlock(['spec']);
   $('#go').onclick = () => { Sound.sfx('tap'); screenLevel(); };
 }
-const avatarMini = () => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
 
 function screenLevel() {
+  current = screenLevel;
   const rule = S.slots, reveal = S.justRan && !REDUCED; S.justRan = false;
   const slots = Array.from({ length: MAX_SLOTS }, (_, i) => {
     const id = rule[i]; const t = TILES.find(x => x.id === id);
-    return t ? `<button class="slot filled" data-rm="${i}" aria-label="Retirer : ${t.label}">${t.label}</button>`
-             : `<div class="slot">emplacement ${i + 1} · vide</div>`;
+    return t ? `<button class="slot filled" data-rm="${i}" data-rm-label="${tx('retirer', 'hapus')}" aria-label="${tx('Retirer', 'Hapus')} : ${L(t.label)}">${L(t.label)}</button>`
+             : `<div class="slot">${tx('emplacement', 'slot')} ${i + 1} · ${tx('vide', 'kosong')}</div>`;
   }).join('');
-  const tray = TILES.map(t => `<button class="tile ${rule.includes(t.id) ? 'used' : ''}" data-add="${t.id}" ${rule.includes(t.id) ? 'disabled' : ''}><span class="k"><i style="background:${KIND_COLOR[t.k]}"></i>${t.k}</span>${t.label}</button>`).join('');
+  const tray = TILES.map(t => `<button class="tile ${rule.includes(t.id) ? 'used' : ''}" data-add="${t.id}" ${rule.includes(t.id) ? 'disabled' : ''}><span class="k"><i style="background:${KIND[t.k].c}"></i>${L(KIND[t.k])}</span>${L(t.label)}</button>`).join('');
   const failing = S.checks ? failingScreens() : new Set();
   const devices = SCREENS.map((scr, i) => renderDevice(scr, S.specs && S.specs[i], i, S.specs ? (failing.has(i) ? 'fail' : 'pass') : '', reveal)).join('');
   const okN = S.checks ? S.checks.filter(c => c.ok).length : 0;
-  const checks = S.checks ? S.checks.map(c => `<div class="check ${c.ok ? 'ok' : 'ko'}"><div class="st">${c.ok ? I.check : I.x}<span class="sr">${c.ok ? 'conforme' : 'non conforme'}</span></div>
-      <div><div class="nm">${c.name}</div><div class="ref">${PRINCIPLES[c.key].ref}</div><div class="why">${c.why}</div></div></div>`).join('')
-    : `<p class="empty">${botSvg('#DDD6FE')}Lancez les agents pour voir l’audit.</p>`;
+  const checks = S.checks ? S.checks.map(c => { const ct = checkText(c); return `<div class="check ${c.ok ? 'ok' : 'ko'}"><div class="st">${c.ok ? I.check : I.x}<span class="sr">${c.ok ? tx('conforme', 'lolos') : tx('non conforme', 'tidak lolos')}</span></div>
+      <div><div class="nm">${ct.name}</div><div class="ref">${L(PRINCIPLES[c.key].ref)}</div><div class="why">${ct.why}</div></div></div>`; }).join('')
+    : `<p class="empty">${botSvg('#DDD6FE')}${tx('Lancez les agents pour voir l’audit.', 'Jalankan para agen untuk melihat audit.')}</p>`;
   const canRun = rule.length > 0 && S.budget >= COST;
 
   app.innerHTML = `<section class="screen">
     <div class="level-head">
-      <div><div class="kicker">08:30 · Le bleu qui n’existait pas</div><h2 class="h" style="margin:0">Écrire une règle qu’aucun agent ne peut mal lire</h2></div>
-      <div class="roles"><span class="role h">Jugement humain · vous écrivez la règle</span><span class="role a">Automatisé · 9 agents l’appliquent</span><span class="role g">Augmenté · l’audit vous éclaire</span></div>
+      <div><div class="kicker">08:30 · ${tx('Le bleu qui n’existait pas', 'Biru yang tidak pernah ada')}</div><h2 class="h" style="margin:0">${tx('Écrire une règle qu’aucun agent ne peut mal lire', 'Tulis aturan yang tidak bisa disalahartikan agen')}</h2></div>
+      <div class="roles"><span class="role h">${tx('Jugement humain · vous écrivez la règle', 'Penilaian manusia · kamu menulis aturan')}</span><span class="role a">${tx('Automatisé · 9 agents l’appliquent', 'Otomatis · 9 agen menerapkannya')}</span><span class="role g">${tx('Augmenté · l’audit vous éclaire', 'Diperkuat AI · audit membantumu')}</span></div>
     </div>
     <div class="level">
       <div>
-        <div class="card request">${avatar('po')}<div><div class="label">Demande de l’équipe Produit</div><div class="q">« Rendre l’alerte de retard plus visible. »</div></div></div>
-        <div class="rule"><div class="rule-title">Règle · <code>alert.critical</code></div><div class="slots">${slots}</div></div>
-        <div class="tray-title">Tuiles disponibles</div>
+        <div class="card request">${avatar('po')}<div><div class="label">${tx('Demande de l’équipe Produit', 'Permintaan tim Produk')}</div><div class="q">${tx('« Rendre l’alerte de retard plus visible. »', '« Bikin peringatan keterlambatan lebih terlihat. »')}</div></div></div>
+        <div class="rule"><div class="rule-title">${tx('Règle', 'Aturan')} · <code>alert.critical</code></div><div class="slots">${slots}</div></div>
+        <div class="tray-title">${tx('Tuiles disponibles', 'Kartu yang tersedia')}</div>
         <div class="tray">${tray}</div>
-        <div class="run"><button class="btn" id="run" ${canRun ? '' : 'disabled'}>${I.play}Lancer les 9 agents</button><span class="cost">coût : ${COST} tokens · lancements : ${S.runs}</span></div>
-        ${S.history.length ? `<div class="history">Essais : ${S.history.map((h, i) => `#${i + 1} ${h}/6`).join(' · ')}</div>` : ''}
+        <div class="run"><button class="btn" id="run" ${canRun ? '' : 'disabled'}>${I.play}${tx('Lancer les 9 agents', 'Jalankan 9 agen')}</button><span class="cost">${tx('coût', 'biaya')} : ${COST} tokens · ${tx('lancements', 'percobaan')} : ${S.runs}</span></div>
+        ${S.history.length ? `<div class="history">${tx('Essais', 'Riwayat')} : ${S.history.map((h, i) => `#${i + 1} ${h}/6`).join(' · ')}</div>` : ''}
       </div>
       <div>
         <div class="grid9">${devices}</div>
@@ -456,7 +515,7 @@ function screenLevel() {
   </section>`;
 
   app.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
-    if (S.slots.length >= MAX_SLOTS) { Sound.sfx('fail'); toast(`La règle est pleine (${MAX_SLOTS} tuiles). Retirez-en une.`); return; }
+    if (S.slots.length >= MAX_SLOTS) { Sound.sfx('fail'); toast(tx(`La règle est pleine (${MAX_SLOTS} tuiles). Retirez-en une.`, `Aturan sudah penuh (${MAX_SLOTS} kartu). Hapus salah satu.`)); return; }
     Sound.sfx('tap'); S.slots.push(b.dataset.add); screenLevel();
   });
   app.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { Sound.sfx('remove'); S.slots.splice(+b.dataset.rm, 1); screenLevel(); });
@@ -490,39 +549,40 @@ function runAgents() {
 }
 
 function screenDebrief() {
-  window.scrollTo(0, 0);
+  if (current !== screenDebrief) window.scrollTo(0, 0);
+  current = screenDebrief;
   $('#clock').textContent = '08:52';
   const spent = START_BUDGET - S.budget;
-  const verdict = S.runs === 1 ? 'Du premier coup. Les agents n’avaient rien à interpréter.' :
-    S.runs <= 2 ? 'Rapide et frugal : la règle était presque juste dès le départ.' :
-    'Vous y êtes arrivé, mais chaque essai a coûté des tokens. En 2030, réfléchir avant de lancer les agents est aussi une compétence.';
+  const verdict = S.runs === 1 ? tx('Du premier coup. Les agents n’avaient rien à interpréter.', 'Langsung berhasil. Para agen tidak perlu menafsirkan apa pun.') :
+    S.runs <= 2 ? tx('Rapide et frugal : la règle était presque juste dès le départ.', 'Cepat dan hemat: aturannya hampir benar sejak awal.') :
+    tx('Vous y êtes arrivé, mais chaque essai a coûté des tokens. En 2030, réfléchir avant de lancer les agents est aussi une compétence.', 'Berhasil, tapi setiap percobaan memakan token. Di 2030, berpikir sebelum menjalankan agen juga sebuah keterampilan.');
   app.innerHTML = `<section class="screen">
-    <div class="kicker">08:52 · Règle validée</div>
-    <h2 class="h">Neuf écrans, une seule alerte.</h2>
+    <div class="kicker">08:52 · ${tx('Règle validée', 'Aturan lolos')}</div>
+    <h2 class="h">${tx('Neuf écrans, une seule alerte.', 'Sembilan layar, satu peringatan.')}</h2>
     <div class="debrief">
       <div class="card">
         <div class="illus" style="margin-bottom:1rem;box-shadow:none">${celebrate()}</div>
-        <div class="score-big">${S.runs} lancement${S.runs > 1 ? 's' : ''} · ${spent} tokens</div>
+        <div class="score-big">${S.runs} ${tx(`lancement${S.runs > 1 ? 's' : ''}`, 'percobaan')} · ${spent} tokens</div>
         <p>${verdict}</p>
         <div class="split">
-          <div class="row"><span class="badge" style="background:var(--role-human)">Jugement humain</span><div>Traduire « plus visible » en règles vérifiables : un token qui porte le sens, une icône et un texte, une cible assez grande. Aucun agent ne pouvait décider ça à votre place.</div></div>
-          <div class="row"><span class="badge" style="background:var(--role-auto)">Automatisé</span><div>Appliquer la règle aux neuf écrans, y compris le thème sombre et l’écran du tram. Une fois la règle claire, la machine est parfaite pour ça.</div></div>
-          <div class="row"><span class="badge" style="background:var(--role-aug)">Augmenté</span><div>L’audit mesure le contraste et repère les écarts. Il vous éclaire ; c’est vous qui décidez quoi corriger.</div></div>
+          <div class="row"><span class="badge" style="background:var(--role-human)">${tx('Jugement humain', 'Penilaian manusia')}</span><div>${tx('Traduire « plus visible » en règles vérifiables : un token qui porte le sens, une icône et un texte, une cible assez grande. Aucun agent ne pouvait décider ça à votre place.', 'Menerjemahkan « lebih terlihat » menjadi aturan yang bisa dicek: token yang membawa makna, ikon dan teks, target yang cukup besar. Tidak ada agen yang bisa memutuskan itu untukmu.')}</div></div>
+          <div class="row"><span class="badge" style="background:var(--role-auto)">${tx('Automatisé', 'Otomatis')}</span><div>${tx('Appliquer la règle aux neuf écrans, y compris le thème sombre et l’écran du tram. Une fois la règle claire, la machine est parfaite pour ça.', 'Menerapkan aturan ke sembilan layar, termasuk tema gelap dan layar di trem. Begitu aturannya jelas, mesin sangat cocok untuk ini.')}</div></div>
+          <div class="row"><span class="badge" style="background:var(--role-aug)">${tx('Augmenté', 'Diperkuat AI')}</span><div>${tx('L’audit mesure le contraste et repère les écarts. Il vous éclaire ; c’est vous qui décidez quoi corriger.', 'Audit mengukur kontras dan menemukan penyimpangan. Ia membantumu, tapi kamu yang memutuskan apa yang diperbaiki.')}</div></div>
         </div>
       </div>
       <div class="card tint">
-        <div class="label" style="margin-bottom:.5rem">D’où vient ce niveau</div>
-        <p class="src"><b>S08</b> Krakovna et al., DeepMind (2020) : le « specification gaming ».<br>
-        <b>S13</b> zeroheight (2026) : 59 % des équipes voient des interfaces contourner leur design system.<br>
-        <b>S15</b> W3C (2025) : le format standard des design tokens.<br>
-        <b>S27</b> Cours 5, F. Levillain : visée initiale et visée interprétée.<br>
-        Règles d’accessibilité : <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener">WCAG 2.2</a> et <a href="${RGAA_URL}" target="_blank" rel="noopener">RGAA 4.1.2</a>.</p>
-        <p class="hint">Codes S## : voir le document d’accompagnement (board FigJam).</p>
+        <div class="label" style="margin-bottom:.5rem">${tx('D’où vient ce niveau', 'Dasar level ini')}</div>
+        <p class="src"><b>S08</b> Krakovna et al., DeepMind (2020) : ${tx('le « specification gaming »', '« specification gaming »')}.<br>
+        <b>S13</b> zeroheight (2026) : ${tx('59 % des équipes voient des interfaces contourner leur design system.', '59% tim melihat antarmuka yang melenceng dari design system mereka.')}<br>
+        <b>S15</b> W3C (2025) : ${tx('le format standard des design tokens.', 'format standar design tokens.')}<br>
+        <b>S27</b> ${tx('Cours 5, F. Levillain : visée initiale et visée interprétée.', 'Kuliah 5, F. Levillain: maksud awal dan maksud yang ditafsirkan.')}<br>
+        ${tx('Règles d’accessibilité', 'Aturan aksesibilitas')} : <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener">WCAG 2.2</a> ${tx('et', 'dan')} <a href="${RGAA_URL}" target="_blank" rel="noopener">RGAA 4.1.2</a>.</p>
+        <p class="hint">${tx('Codes S## : voir le document d’accompagnement (board FigJam).', 'Kode S##: lihat dokumen pendamping (board FigJam).')}</p>
         <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1rem">
-          <button class="btn" id="carnet2">${I.book}Ouvrir le carnet (${S.carnet.size})</button>
-          <button class="btn ghost" id="again">${I.redo}Rejouer le niveau</button>
+          <button class="btn" id="carnet2">${I.book}${tx('Ouvrir le carnet', 'Buka catatan')} (${S.carnet.size})</button>
+          <button class="btn ghost" id="again">${I.redo}${tx('Rejouer le niveau', 'Main lagi')}</button>
         </div>
-        <p class="hint">Prochain moment : 09:30 · un nouveau composant (bientôt)</p>
+        <p class="hint">${tx('Prochain moment : 09:30 · un nouveau composant (bientôt)', 'Berikutnya: 09:30 · komponen baru (segera)')}</p>
       </div>
     </div>
   </section>`;
@@ -531,13 +591,14 @@ function screenDebrief() {
 }
 
 function screenOut() {
-  window.scrollTo(0, 0);
+  if (current !== screenOut) window.scrollTo(0, 0);
+  current = screenOut;
   app.innerHTML = `<section class="screen hero">
     <div>
-      <div class="kicker">Budget épuisé</div>
-      <h2 class="h">Plus de tokens pour aujourd’hui.</h2>
-      <p class="lead">Les agents ne travaillent plus. Les écrans gardent l’alerte de votre dernier essai. En 2030, l’IA a un coût : chaque lancement à l’aveugle se paie. Relisez l’audit, ouvrez le carnet, et recommencez en écrivant la règle avant de lancer.</p>
-      <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1rem"><button class="btn" id="again">${I.redo}Recommencer 08:30</button><button class="btn ghost" id="carnet2">${I.book}Ouvrir le carnet</button></div>
+      <div class="kicker">${tx('Budget épuisé', 'Anggaran habis')}</div>
+      <h2 class="h">${tx('Plus de tokens pour aujourd’hui.', 'Token hari ini sudah habis.')}</h2>
+      <p class="lead">${tx('Les agents ne travaillent plus. Les écrans gardent l’alerte de votre dernier essai. En 2030, l’IA a un coût : chaque lancement à l’aveugle se paie. Relisez l’audit, ouvrez le carnet, et recommencez en écrivant la règle avant de lancer.', 'Para agen berhenti bekerja. Layar-layar menampilkan peringatan dari percobaan terakhirmu. Di 2030, AI ada biayanya: setiap percobaan asal-asalan harus dibayar. Baca lagi auditnya, buka catatan, lalu ulangi dengan menyusun aturan sebelum menjalankan agen.')}</p>
+      <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1rem"><button class="btn" id="again">${I.redo}${tx('Recommencer 08:30', 'Ulangi 08:30')}</button><button class="btn ghost" id="carnet2">${I.book}${tx('Ouvrir le carnet', 'Buka catatan')}</button></div>
     </div>
     <div class="illus">${sleepyBot()}</div>
   </section>`;
@@ -551,14 +612,14 @@ function openCarnet() {
   Sound.sfx('tap');
   const list = [...S.carnet].map(k => {
     const p = PRINCIPLES[k];
-    const rg = /RGAA/.test(p.ref) ? ` · <a href="${RGAA_URL}" target="_blank" rel="noopener">critères RGAA</a>` : '';
-    return `<div class="entry"><div class="ref">${p.ref}</div><h4>${p.title}</h4><div>${p.text}</div><div style="margin-top:.4rem"><a href="${p.url}" target="_blank" rel="noopener">Source officielle</a>${rg}</div></div>`;
+    const rg = /RGAA/.test(L(p.ref)) ? ` · <a href="${RGAA_URL}" target="_blank" rel="noopener">${tx('critères RGAA', 'kriteria RGAA')}</a>` : '';
+    return `<div class="entry"><div class="ref">${L(p.ref)}</div><h4>${L(p.title)}</h4><div>${L(p.text)}</div><div style="margin-top:.4rem"><a href="${p.url}" target="_blank" rel="noopener">${tx('Source officielle', 'Sumber resmi')}</a>${rg}</div></div>`;
   }).join('');
-  $('#carnetList').innerHTML = list || '<p class="empty">Aucun principe pour l’instant. Jouez pour en découvrir.</p>';
-  $('#carnet').showModal();
+  $('#carnetList').innerHTML = list || `<p class="empty">${tx('Aucun principe pour l’instant. Jouez pour en découvrir.', 'Belum ada prinsip. Mainkan untuk menemukannya.')}</p>`;
+  if (!$('#carnet').open) $('#carnet').showModal();
 }
 $('#carnetBtn').onclick = openCarnet;
 $('#carnetClose').onclick = () => $('#carnet').close();
 
-renderSoundBtn();
+renderChrome();
 screenTitle();
