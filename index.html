@@ -5,31 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rail · Le designer en 2030</title>
 <meta name="description" content="Un jeu sur le designer de design system en 2030 : écrire des règles que les agents ne peuvent pas mal interpréter.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#F4F1FA">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="brand-mark">Rail</span><span class="brand-sub">Le designer en 2030 · prototype</span></div>
+  <div class="brand">
+    <svg class="brand-logo" viewBox="0 0 40 40" aria-hidden="true"><rect x="3" y="7" width="34" height="24" rx="10" fill="#10B981" stroke="#2A2536" stroke-width="3"/><rect x="9" y="12" width="9" height="8" rx="3" fill="#fff" stroke="#2A2536" stroke-width="2"/><rect x="22" y="12" width="9" height="8" rx="3" fill="#fff" stroke="#2A2536" stroke-width="2"/><circle cx="12" cy="34" r="3" fill="#2A2536"/><circle cx="28" cy="34" r="3" fill="#2A2536"/><path d="M20 7 L14 2 M20 7 L26 2" stroke="#2A2536" stroke-width="2.5" stroke-linecap="round"/></svg>
+    <span class="brand-mark">Rail</span><span class="brand-sub">Le designer en 2030 · prototype</span>
+  </div>
   <div class="hud" id="hud" hidden>
     <span class="clock" id="clock">08:30</span>
-    <div class="budget" aria-label="Budget de tokens">
-      <span class="mono">Budget</span>
-      <div class="bar"><div class="bar-fill" id="budgetFill"></div></div>
-      <span class="mono" id="budgetText">100</span>
+    <div class="budget">
+      <span>Budget</span>
+      <div class="bar" role="progressbar" aria-label="Budget de tokens" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="budgetBar"><div class="bar-fill" id="budgetFill"></div></div>
+      <span id="budgetText">100</span>
     </div>
   </div>
-  <button class="btn ghost" id="carnetBtn" type="button">Carnet <span id="carnetCount">(0)</span></button>
+  <div class="top-actions">
+    <button class="btn ghost small" id="soundBtn" type="button" aria-pressed="true"></button>
+    <button class="btn ghost small" id="carnetBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5M9 7h7"/></svg><span class="t">Carnet</span> <span id="carnetCount">(0)</span></button>
+  </div>
 </header>
 
 <main id="app"></main>
 
-<dialog id="carnet" class="carnet">
+<dialog id="carnet" class="carnet" aria-labelledby="carnetTitle">
   <div class="carnet-head">
-    <h2>Carnet de principes</h2>
-    <button class="btn ghost" type="button" id="carnetClose">Fermer</button>
+    <h2 id="carnetTitle">Carnet de principes</h2>
+    <button class="btn ghost small" type="button" id="carnetClose">Fermer</button>
   </div>
   <p class="carnet-intro">Chaque principe rencontré pendant la partie s'ajoute ici, avec sa source officielle.</p>
   <div id="carnetList"></div>
