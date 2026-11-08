@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rail · Le designer en 2030</title>
+<meta name="description" content="Un jeu sur le designer de design system en 2030 : écrire des règles que les agents ne peuvent pas mal interpréter.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">Rail</span><span class="brand-sub">Le designer en 2030 · prototype</span></div>
+  <div class="hud" id="hud" hidden>
+    <span class="clock" id="clock">08:30</span>
+    <div class="budget" aria-label="Budget de tokens">
+      <span class="mono">Budget</span>
+      <div class="bar"><div class="bar-fill" id="budgetFill"></div></div>
+      <span class="mono" id="budgetText">100</span>
+    </div>
+  </div>
+  <button class="btn ghost" id="carnetBtn" type="button">Carnet <span id="carnetCount">(0)</span></button>
+</header>
+
+<main id="app"></main>
+
+<dialog id="carnet" class="carnet">
+  <div class="carnet-head">
+    <h2>Carnet de principes</h2>
+    <button class="btn ghost" type="button" id="carnetClose">Fermer</button>
+  </div>
+  <p class="carnet-intro">Chaque principe rencontré pendant la partie s'ajoute ici, avec sa source officielle.</p>
+  <div id="carnetList"></div>
+</dialog>
+
+<script src="game.js"></script>
+</body>
+</html>
