@@ -18,12 +18,13 @@
   <div class="hud" id="hud" hidden>
     <span class="clock" id="clock">08:30</span>
     <div class="budget">
-      <span>Budget</span>
+      <span id="budgetLabel">Budget</span>
       <div class="bar" role="progressbar" aria-label="Budget de tokens" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" id="budgetBar"><div class="bar-fill" id="budgetFill"></div></div>
       <span id="budgetText">100</span>
     </div>
   </div>
   <div class="top-actions">
+    <div class="lang" id="langSwitch" role="group" aria-label="Langue"><button type="button" data-lang="fr" aria-pressed="true" lang="fr">FR</button><button type="button" data-lang="id" aria-pressed="false" lang="id">ID</button></div>
     <button class="btn ghost small" id="soundBtn" type="button" aria-pressed="true"></button>
     <button class="btn ghost small" id="carnetBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5V4.5M9 7h7"/></svg><span class="t">Carnet</span> <span id="carnetCount">(0)</span></button>
   </div>
