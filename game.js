@@ -341,93 +341,211 @@ const LEVELS = [
 ];
 
 /* =====================================================================
-   SON : une ambiance par situation (Web Audio, rien à télécharger)
+   SON : musique adaptative, chaleureuse et curieuse (Web Audio, rien à télécharger)
+   Bus séparés (musique / effets), réverbération à réponse impulsionnelle générée,
+   couches qui montent ou descendent selon la situation, changement d'harmonie
+   sur la mesure suivante, effets légèrement variés et musique qui s'efface sous les effets.
    ===================================================================== */
 const Sound = (() => {
-  let ctx = null, master = null, bus = null, noise = null, on = true, timer = null, step = 0, nextT = 0, mood = null, P = null;
+  let ctx = null, master, musicBus, duck, sfxBus, revIn, mRevIn, dlyIn, noise, airSrc = null;
+  let on = true, timer = null, step = 0, nextT = 0, mood = null, P = null, pending = null, walk = 4, started = false;
+  const LY = {};
   try { on = localStorage.getItem('rail-sound') !== 'off'; } catch (e) {}
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const BPM = 80, S16 = 60 / BPM / 4;
+
+  /* Harmonie, gamme et dosage des couches pour chaque situation (même tempo partout : les couches restent alignées) */
   const MOODS = {
-    calm:    { bpm: 86,  chords: [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 65]], pad: 'sine', arp: 'triangle', arpEvery: 2, kick: [0, 8], hat: [4, 12], bass: [0, 10], vol: .9 },
-    tension: { bpm: 104, chords: [[57, 60, 64], [53, 57, 60], [50, 53, 57], [52, 56, 59]], pad: 'sawtooth', arp: null, kick: [0, 6, 8], hat: [2, 6, 10, 14], bass: [0, 2, 4, 6, 8, 10, 12, 14], vol: .7 },
-    think:   { bpm: 72,  chords: [[50, 53, 57, 60, 64], [46, 50, 53, 57], [43, 46, 50, 53, 57], [45, 50, 52, 55]], pad: 'sine', arp: 'sine', arpEvery: 4, kick: [], hat: [8], bass: [0], vol: .85 },
-    win:     { bpm: 120, chords: [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]], pad: 'triangle', arp: 'square', arpEvery: 1, kick: [0, 4, 8, 12], hat: [2, 6, 10, 14], bass: [0, 8], vol: .55 },
-    oops:    { bpm: 66,  chords: [[57, 60, 63], [56, 59, 62], [53, 56, 60], [52, 55, 59]], pad: 'sine', arp: 'triangle', arpEvery: 4, kick: [0], hat: [], bass: [0, 8], vol: .8 },
-    dusk:    { bpm: 78,  chords: [[53, 57, 60, 64], [52, 55, 59, 62], [50, 53, 57, 60], [55, 58, 62, 65]], pad: 'sine', arp: 'triangle', arpEvery: 2, kick: [0], hat: [8], bass: [0, 8], vol: .9 }
+    calm:    { chords: [[62, 66, 69, 73, 76], [59, 62, 66, 69, 73], [55, 59, 62, 66, 69], [57, 61, 64, 69, 71]], roots: [38, 35, 43, 45],
+               scale: [62, 64, 66, 69, 71, 74, 76, 78, 81], mix: { keys: .8, pad: .55, bell: .35, pluck: .3, perc: .25, air: .4 },
+               keysAt: [0, 10], pluckAt: [0, 7, 10], shaker: 2, bellP: .22, cut: 1800 },
+    think:   { chords: [[60, 64, 66, 71], [62, 64, 66, 69], [64, 67, 71, 74], [57, 60, 64, 67, 71]], roots: [36, 36, 40, 33],
+               scale: [60, 62, 64, 66, 67, 71, 72, 74, 76, 78], mix: { keys: .35, pad: .7, bell: .75, pluck: 0, perc: .12, air: .5 },
+               keysAt: [0], pluckAt: [], shaker: 4, bellP: .3, cut: 1400 },
+    tension: { chords: [[57, 60, 64, 71], [53, 57, 60, 64, 71], [50, 53, 57, 60, 64], [52, 57, 59, 62]], roots: [33, 29, 38, 40],
+               scale: [57, 60, 62, 64, 67, 69, 72, 74], mix: { keys: .3, pad: .45, bell: .2, pluck: .8, perc: .6, air: .3 },
+               keysAt: [0, 12], pluckAt: [0, 2, 4, 6, 8, 10, 12, 14], shaker: 1, bellP: .1, cut: 900, kick: [0, 8], wood: [12] },
+    win:     { chords: [[62, 66, 69, 73, 76], [55, 59, 62, 66, 69], [52, 55, 59, 62, 66], [57, 61, 64, 66, 71]], roots: [38, 43, 40, 45],
+               scale: [62, 64, 66, 69, 71, 74, 76, 78, 81, 83], mix: { keys: .7, pad: .45, bell: .8, pluck: .5, perc: .55, air: .2 },
+               keysAt: [0, 6, 10], pluckAt: [0, 6, 8, 14], shaker: 1, bellP: .42, cut: 2400, kick: [0, 8], wood: [4, 12] },
+    oops:    { chords: [[59, 62, 66, 69, 73], [55, 59, 62, 66], [52, 55, 59, 62], [54, 59, 61, 64]], roots: [35, 43, 40, 42],
+               scale: [59, 62, 64, 66, 69, 71, 74], mix: { keys: .55, pad: .6, bell: .3, pluck: 0, perc: 0, air: .5 },
+               keysAt: [0], pluckAt: [], shaker: 0, bellP: .12, cut: 1100 },
+    dusk:    { chords: [[55, 59, 62, 66, 69], [54, 57, 61, 64], [52, 55, 59, 62, 66], [57, 59, 64, 66, 69]], roots: [43, 42, 40, 45],
+               scale: [55, 57, 59, 62, 64, 67, 69, 71, 74], mix: { keys: .8, pad: .7, bell: .3, pluck: .15, perc: .1, air: .5 },
+               keysAt: [0, 10], pluckAt: [0, 8], shaker: 4, bellP: .16, cut: 1600 }
   };
+
+  function impulse(sec, decay) {
+    const n = Math.floor(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = b.getChannelData(c); let lp = 0;
+      for (let i = 0; i < n; i++) { const t = i / n, k = .25 + t * .7; lp = lp * k + (Math.random() * 2 - 1) * (1 - k); d[i] = lp * Math.pow(1 - t, decay) * 2.2; }
+    }
+    return b;
+  }
   function ensure() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
-      ctx = new AC(); master = ctx.createGain(); master.gain.value = .8;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600;
-      master.connect(lp); lp.connect(ctx.destination);
-      bus = ctx.createGain(); bus.gain.value = 0; bus.connect(master);
-      const len = ctx.sampleRate * .2; noise = ctx.createBuffer(1, len, ctx.sampleRate);
-      const d = noise.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      ctx = new AC();
+      const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -8; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .25;
+      master = ctx.createGain(); master.gain.value = 1.3; master.connect(lim); lim.connect(ctx.destination);
+      duck = ctx.createGain(); duck.connect(master);
+      musicBus = ctx.createGain(); musicBus.gain.value = 0; const mhp = ctx.createBiquadFilter(); mhp.type = 'highpass'; mhp.frequency.value = 60; musicBus.connect(mhp); mhp.connect(duck);
+      sfxBus = ctx.createGain(); sfxBus.gain.value = .9; sfxBus.connect(master);
+      const ir = impulse(3.2, 3);
+      const rev = ctx.createConvolver(); rev.buffer = ir; revIn = ctx.createGain(); revIn.gain.value = .55; revIn.connect(rev); rev.connect(master); // réverbération des effets
+      const mRev = ctx.createConvolver(); mRev.buffer = ir; mRevIn = ctx.createGain(); mRevIn.gain.value = .6; mRevIn.connect(mRev); mRev.connect(musicBus); // réverbération de la musique
+      const dly = ctx.createDelay(1.5), fb = ctx.createGain(), dlp = ctx.createBiquadFilter(), dOut = ctx.createGain();
+      dly.delayTime.value = S16 * 3; fb.gain.value = .33; dlp.type = 'lowpass'; dlp.frequency.value = 2400; dOut.gain.value = .4;
+      dlyIn = ctx.createGain(); dlyIn.connect(dly); dly.connect(dlp); dlp.connect(fb); fb.connect(dly); dlp.connect(dOut); dOut.connect(musicBus); dOut.connect(mRevIn);
+      const REV = { keys: .35, pad: .5, bell: .6, pluck: .08, perc: .1, air: 0 }, DLY = { bell: .35, keys: .08 };
+      Object.keys(REV).forEach(k => { // chaque couche : son direct + départs réverbération et écho, tous coupés avec la couche
+        LY[k] = ctx.createGain(); LY[k].gain.value = 0; LY[k].connect(musicBus);
+        if (REV[k]) { const g = ctx.createGain(); g.gain.value = REV[k]; LY[k].connect(g); g.connect(mRevIn); }
+        if (DLY[k]) { const g = ctx.createGain(); g.gain.value = DLY[k]; LY[k].connect(g); g.connect(dlyIn); }
+      });
+      const n = ctx.sampleRate * 2; noise = ctx.createBuffer(1, n, ctx.sampleRate);
+      const d = noise.getChannelData(0); let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; b0 = .99765 * b0 + w * .099; b1 = .963 * b1 + w * .2965; b2 = .57 * b2 + w * 1.0526; d[i] = (b0 + b1 + b2 + w * .1848) * .2; } // bruit rose
     }
     if (ctx.state === 'suspended') ctx.resume();
     return true;
   }
-  function tone(f, t, dur, type, vol, dest, cut) {
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.value = f;
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-    if (cut) { const f2 = ctx.createBiquadFilter(); f2.type = 'lowpass'; f2.frequency.value = cut; o.connect(f2); f2.connect(g); } else o.connect(g);
-    g.connect(dest || master); o.start(t); o.stop(t + dur + .05);
+  const pan = (node, p) => { if (!ctx.createStereoPanner) return node; const s = ctx.createStereoPanner(); s.pan.value = p; node.connect(s); return s; };
+  function send(node, dest, rev = 0) { // la musique passe par les départs de sa couche ; les effets ont leur propre réverbération
+    node.connect(dest);
+    if (dest === sfxBus && rev) { const g = ctx.createGain(); g.gain.value = rev; node.connect(g); g.connect(revIn); }
   }
-  function hat(t, vol) {
-    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    s.buffer = noise; f.type = 'highpass'; f.frequency.value = 7000;
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + .06);
-    s.connect(f); f.connect(g); g.connect(bus); s.start(t); s.stop(t + .08);
+
+  /* ---------- Instruments ---------- */
+  function epiano(m, t, vel, dest, len = 2.6) { // piano électrique (FM douce)
+    const f = mtof(m), c = ctx.createOscillator(), md = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+    c.frequency.value = f; md.frequency.value = f; c.detune.value = rnd(-4, 4);
+    mg.gain.setValueAtTime(f * 1.4 * vel, t); mg.gain.exponentialRampToValueAtTime(f * .12, t + .7);
+    md.connect(mg); mg.connect(c.frequency);
+    const tine = ctx.createOscillator(), tg = ctx.createGain(); tine.frequency.value = f * 4; tg.gain.setValueAtTime(.12 * vel, t); tg.gain.exponentialRampToValueAtTime(.0001, t + .25);
+    tine.connect(tg); tg.connect(g);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16 * vel, t + .006); g.gain.exponentialRampToValueAtTime(.06 * vel, t + .4); g.gain.exponentialRampToValueAtTime(.0001, t + len);
+    c.connect(g); send(pan(g, rnd(-.25, .25)), dest, .35, .08);
+    [c, md, tine].forEach(o => { o.start(t); o.stop(t + len + .1); });
   }
-  function kick(t) {
+  function pad(m, t, dur, cut, dest) { // nappe : deux triangles désaccordés, filtre qui respire
+    const g = ctx.createGain(), f = ctx.createBiquadFilter(), hp = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = .7; hp.type = 'highpass'; hp.frequency.value = 220;
+    f.frequency.setValueAtTime(cut * .6, t); f.frequency.linearRampToValueAtTime(cut, t + dur * .5); f.frequency.linearRampToValueAtTime(cut * .7, t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.028, t + 1.4); g.gain.setValueAtTime(.028, t + dur - .2); g.gain.linearRampToValueAtTime(.0001, t + dur + 1.8);
+    [-7, 7].forEach(dt => { const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = mtof(m); o.detune.value = dt; o.connect(f); o.start(t); o.stop(t + dur + 2); });
+    f.connect(hp); hp.connect(g); send(g, dest, .5);
+  }
+  function bell(m, t, vel, dest) { // verre et marimba : la petite voix curieuse
+    const f = mtof(m), c = ctx.createOscillator(), md = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+    c.frequency.value = f; md.frequency.value = f * 3.5;
+    mg.gain.setValueAtTime(f * 2 * vel, t); mg.gain.exponentialRampToValueAtTime(f * .05, t + .35);
+    md.connect(mg); mg.connect(c.frequency);
+    const wood = ctx.createOscillator(), wg = ctx.createGain(); wood.frequency.value = f * 4.02; wg.gain.setValueAtTime(.05 * vel, t); wg.gain.exponentialRampToValueAtTime(.0001, t + .08);
+    wood.connect(wg); wg.connect(g);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * vel, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + 1.8);
+    c.connect(g); send(pan(g, rnd(-.45, .45)), dest, .6, .35);
+    [c, md, wood].forEach(o => { o.start(t); o.stop(t + 1.9); });
+  }
+  function pluck(m, t, vel, dest) { // basse pincée, feutrée
+    const o = ctx.createOscillator(), s = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = mtof(m); s.frequency.value = mtof(m + 12); s.detune.value = rnd(-6, 6);
+    f.type = 'lowpass'; f.Q.value = 3; f.frequency.setValueAtTime(1300 * vel, t); f.frequency.exponentialRampToValueAtTime(220, t + .22);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2 * vel, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + .5);
+    o.connect(f); s.connect(f); f.connect(g); send(g, dest, .08);
+    [o, s].forEach(x => { x.start(t); x.stop(t + .55); });
+  }
+  function noiseHit(t, type, freq, q, dur, vol, dest, p = 0, rev = .15) {
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noise; src.playbackRate.value = rnd(.9, 1.1); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    src.connect(f); f.connect(g); send(pan(g, p), dest, rev);
+    src.start(t, rnd(0, 1.5)); src.stop(t + dur + .05);
+  }
+  function kick(t, dest) {
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(42, t + .18);
-    g.gain.setValueAtTime(.32, t); g.gain.exponentialRampToValueAtTime(.0001, t + .25);
-    o.connect(g); g.connect(bus); o.start(t); o.stop(t + .3);
+    o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(55, t + .12);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.13, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .3);
+    o.connect(g); g.connect(dest); o.start(t); o.stop(t + .35);
+  }
+  function woodblock(t, dest) {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = rnd(1650, 1850);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.05, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+    o.connect(g); send(pan(g, .3), dest, .25); o.start(t); o.stop(t + .1);
+  }
+  function startAir() { // souffle d'air : un lit de bruit rose filtré qui bouge lentement
+    if (airSrc) return;
+    airSrc = ctx.createBufferSource(); airSrc.buffer = noise; airSrc.loop = true;
+    const bp = ctx.createBiquadFilter(), lfo = ctx.createOscillator(), lg = ctx.createGain(), g = ctx.createGain();
+    bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = .5; lfo.frequency.value = .05; lg.gain.value = 900;
+    lfo.connect(lg); lg.connect(bp.frequency); g.gain.value = .22;
+    airSrc.connect(bp); bp.connect(g); g.connect(LY.air); airSrc.start(); lfo.start();
+  }
+
+  /* ---------- Séquenceur ---------- */
+  function applyMix(p, sec = 1.2) {
+    const t = ctx.currentTime;
+    Object.keys(LY).forEach(k => { LY[k].gain.cancelScheduledValues(t); LY[k].gain.setTargetAtTime(p.mix[k] || 0, t, sec / 3); });
   }
   function schedule() {
-    const s16 = 60 / P.bpm / 4;
-    while (nextT < ctx.currentTime + .3) {
-      const bar = Math.floor(step / 16) % 4, s = step % 16, ch = P.chords[bar];
-      if (s === 0) ch.forEach(n => tone(mtof(n - 12), nextT, s16 * 15.5, P.pad, P.pad === 'sawtooth' ? .018 : .04, bus, P.pad === 'sawtooth' ? 900 : 0));
-      if (P.bass.includes(s)) tone(mtof(ch[0] - 24), nextT, P.bass.length > 4 ? s16 * 1.6 : s16 * 6, P.bass.length > 4 ? 'sawtooth' : 'triangle', P.bass.length > 4 ? .05 : .12, bus, 500);
-      if (P.arp && s % P.arpEvery === 0 && (step * 7) % 5 !== 0) { const arp = [0, 2, 1, 3, 2, 1, 3, 2]; tone(mtof(ch[arp[(s / P.arpEvery) % 8] % ch.length] + 12), nextT, P.arpEvery === 1 ? .12 : .35, P.arp, P.arp === 'square' ? .018 : .03, bus); }
-      if (P.kick.includes(s)) kick(nextT);
-      if (P.hat.includes(s)) hat(nextT, .035);
-      nextT += s16; step++;
+    while (nextT < ctx.currentTime + .25) {
+      const s = step % 16;
+      if (s === 0 && pending) { P = pending; pending = null; } // l'harmonie change sur la mesure suivante
+      const bar = Math.floor(step / 16) % 4, ch = P.chords[bar], root = P.roots[bar];
+      const swing = s % 2 ? S16 * .14 : 0, t = nextT + swing;
+      if (s === 0) { ch.forEach(n => pad(n, t, S16 * 16, P.cut * 1.6, LY.pad)); }
+      if (P.keysAt.includes(s)) {
+        const notes = s === 0 ? ch : ch.filter((_, i) => i % 2 === 1);
+        notes.forEach((n, i) => epiano(n, t + i * rnd(.012, .03), s === 0 ? rnd(.75, .95) : rnd(.45, .6), LY.keys));
+      }
+      if (P.pluckAt.includes(s)) pluck(root + (s === 10 || s === 14 ? 7 : 0), t, s % 4 === 0 ? rnd(.85, 1) : rnd(.5, .7), LY.pluck);
+      if (P.shaker && s % P.shaker === 0) noiseHit(t, 'bandpass', rnd(6500, 8500), 2, .05, s % 4 === 2 ? .05 : .025, LY.perc, rnd(-.3, .3), .05);
+      if (P.kick && P.kick.includes(s)) kick(t, LY.perc);
+      if (P.wood && P.wood.includes(s)) woodblock(t, LY.perc);
+      if (s % 2 === 0 && Math.random() < P.bellP) { // marche aléatoire dans la gamme : une phrase qui cherche, puis remonte comme une question
+        walk = Math.max(0, Math.min(P.scale.length - 1, walk + [-2, -1, -1, 1, 1, 2][Math.floor(Math.random() * 6)] + (bar % 2 && s >= 12 ? 1 : 0)));
+        bell(P.scale[walk], t, rnd(.55, .9), LY.bell);
+      }
+      nextT += S16; step++;
     }
   }
   function setMood(m) {
     if (!on || !ensure() || m === mood) return;
-    mood = m; P = MOODS[m];
-    const t = ctx.currentTime;
-    bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t + .35);
-    clearInterval(timer);
-    setTimeout(() => {
-      if (mood !== m) return;
-      step = 0; nextT = ctx.currentTime + .05;
-      bus.gain.cancelScheduledValues(ctx.currentTime); bus.gain.setValueAtTime(0, ctx.currentTime); bus.gain.linearRampToValueAtTime(P.vol, ctx.currentTime + 1.2);
-      timer = setInterval(schedule, 60);
-    }, 380);
+    mood = m; const p = MOODS[m];
+    if (!started) {
+      started = true; P = p; step = 0; nextT = ctx.currentTime + .08; startAir(); applyMix(p, .1);
+      musicBus.gain.cancelScheduledValues(ctx.currentTime); musicBus.gain.setValueAtTime(0, ctx.currentTime); musicBus.gain.linearRampToValueAtTime(.9, ctx.currentTime + 2.5);
+      clearInterval(timer); timer = setInterval(schedule, 50);
+    } else { pending = p; applyMix(p); }
   }
   function stop() {
-    if (!ctx) return; mood = null; const t = ctx.currentTime;
-    bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(bus.gain.value, t); bus.gain.linearRampToValueAtTime(0, t + .4);
-    setTimeout(() => clearInterval(timer), 450);
+    if (!ctx) return; mood = null; started = false; const t = ctx.currentTime;
+    musicBus.gain.cancelScheduledValues(t); musicBus.gain.setValueAtTime(musicBus.gain.value, t); musicBus.gain.linearRampToValueAtTime(0, t + .5);
+    setTimeout(() => { if (!started) { clearInterval(timer); if (airSrc) { airSrc.stop(); airSrc = null; } } }, 600);
   }
+  function duckMusic() { // la musique s'efface un instant sous chaque effet
+    const t = ctx.currentTime; duck.gain.cancelScheduledValues(t);
+    duck.gain.setTargetAtTime(.55, t, .01); duck.gain.setTargetAtTime(1, t + .15, .15);
+  }
+
+  /* ---------- Effets (toujours légèrement différents) ---------- */
   const fx = {
-    tap() { tone(880, ctx.currentTime, .09, 'triangle', .08); },
-    right() { [72, 76, 79, 84].forEach((n, i) => tone(mtof(n), ctx.currentTime + i * .09, .6, 'triangle', .09)); },
-    wrong() { tone(mtof(52), ctx.currentTime, .25, 'sawtooth', .04, null, 1200); tone(mtof(47), ctx.currentTime + .18, .4, 'sawtooth', .04, null, 1200); },
-    page() { tone(mtof(79), ctx.currentTime, .12, 'sine', .05); tone(mtof(84), ctx.currentTime + .06, .14, 'sine', .04); }
+    tap() { const t = ctx.currentTime; noiseHit(t, 'highpass', 3000, .7, .02, .05, sfxBus, 0, .05); const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = rnd(1250, 1450);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .06); o.connect(g); send(g, sfxBus, .15); o.start(t); o.stop(t + .08); },
+    page() { const t = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); src.buffer = noise;
+      f.type = 'bandpass'; f.Q.value = 1.2; f.frequency.setValueAtTime(700, t); f.frequency.exponentialRampToValueAtTime(rnd(2800, 3600), t + .2);
+      g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.12, t + .06); g.gain.exponentialRampToValueAtTime(.0001, t + .26);
+      src.connect(f); f.connect(g); send(g, sfxBus, .2); src.start(t, rnd(0, 1)); src.stop(t + .3); },
+    right() { const t = ctx.currentTime, up = Math.random() < .5 ? 0 : 2; [74, 78, 81, 86].forEach((n, i) => bell(n + up, t + i * .075, .95 - i * .1, sfxBus)); epiano(62 + up, t, .7, sfxBus, 2); epiano(69 + up, t + .02, .6, sfxBus, 2); },
+    wrong() { const t = ctx.currentTime; [[64, 0], [61, .16]].forEach(([n, d]) => { epiano(n, t + d, .7, sfxBus, 1.6); }); pluck(40, t + .16, .8, sfxBus); }
   };
   let wanted = null;
   return {
     get on() { return on; },
     mood(m) { wanted = m; setMood(m); },
-    sfx(n) { if (on && ensure()) fx[n](); },
+    sfx(n) { if (on && ensure()) { duckMusic(); fx[n](); } },
     toggle() {
       on = !on; try { localStorage.setItem('rail-sound', on ? 'on' : 'off'); } catch (e) {}
       if (on && wanted) { mood = null; setMood(wanted); } else stop();
