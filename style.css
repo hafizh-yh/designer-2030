@@ -145,3 +145,4 @@ dialog::backdrop{background:rgba(22,22,22,.55)}
   .hud{gap:.6rem}
   .clock{font-size:1.4rem}
 }
+.hud[hidden]{display:none}
